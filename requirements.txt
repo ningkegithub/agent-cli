@@ -1,3 +1,5 @@
-langchain-core
-langchain-openai
+langchain
 langgraph
+langchain-openai
+requests
+beautifulsoup4

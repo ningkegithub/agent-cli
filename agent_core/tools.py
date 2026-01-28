@@ -3,7 +3,11 @@ import subprocess
 from langchain_core.tools import tool
 
 # Configuration
-SKILL_PATH = os.path.expanduser("~/.gemini/skills/image-to-pdf/SKILL.md")
+SKILL_BASE_DIR = os.path.expanduser("~/.gemini/skills")
+SKILL_MAP = {
+    "imagetopdf": os.path.join(SKILL_BASE_DIR, "image-to-pdf/SKILL.md"),
+    "web_scraper": os.path.join(SKILL_BASE_DIR, "web-scraper/SKILL.md"),
+}
 
 @tool
 def run_shell(command: str):
@@ -28,21 +32,19 @@ def run_shell(command: str):
 
 @tool
 def activate_skill(skill_name: str):
-    """Activate a special skill. e.g. 'imagetopdf'."""
+    """Activate a special skill. Available: 'imagetopdf', 'web_scraper'."""
     print(f"\n⚡️ [Tool] Activating skill: {skill_name}...")
     
-    # In a real dynamic system, this would map names to paths
-    target_path = SKILL_PATH 
+    target_path = SKILL_MAP.get(skill_name)
     
-    if skill_name == "imagetopdf":
-        if os.path.exists(target_path):
-            with open(target_path, "r") as f:
-                content = f.read()
-            return f"SYSTEM_INJECTION: {content}"
-        else:
-            return f"Error: Skill definition file not found at {target_path}"
+    if target_path and os.path.exists(target_path):
+        with open(target_path, "r") as f:
+            content = f.read()
+        return f"SYSTEM_INJECTION: {content}"
+    elif target_path:
+        return f"Error: Skill definition file not found at {target_path}"
     else:
-        return f"Error: Skill '{skill_name}' is not installed locally."
+        return f"Error: Skill '{skill_name}' is not registered locally."
 
 # Export list for binding
 available_tools = [run_shell, activate_skill]

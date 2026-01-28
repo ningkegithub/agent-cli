@@ -16,11 +16,11 @@ def main():
         print("   Please run: export OPENAI_API_KEY='sk-...'")
         return
 
-    # Initialize Graph
+    # 初始化图
     app = build_graph()
     
     chat_history = []
-    active_skills = ""
+    active_skills = {} # 改为字典存储多技能
 
     while True:
         try:
@@ -33,15 +33,16 @@ def main():
                 "active_skills": active_skills
             }
             
-            print("   (Thinking...)")
+            print("   (思考中...)")
             for event in app.stream(inputs, stream_mode="values"):
                 last_msg = event["messages"][-1]
+                # 从事件中获取更新后的技能池
                 active_skills = event.get("active_skills", active_skills)
                 
                 if isinstance(last_msg, AIMessage):
                     if last_msg.tool_calls:
                         for tc in last_msg.tool_calls:
-                            print(f"   🤖 Action: {tc['name']}({tc['args']})")
+                            print(f"   🤖 动作: {tc['name']}({tc['args']})")
                     elif last_msg.content:
                         print(f"Agent> {last_msg.content}")
                 
