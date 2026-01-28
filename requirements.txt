@@ -2,4 +2,4 @@ langchain
 langgraph
 langchain-openai
 requests
-beautifulsoup4
+beautifulsoup4prompt_toolkit

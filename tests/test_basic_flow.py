@@ -29,7 +29,7 @@ def test_graph_execution():
     # We ask a simple question first to avoid complex skill loading issues if paths are wrong
     inputs = {
         "messages": [HumanMessage(content="Hello! Who are you?")],
-        "active_skills": ""
+        "active_skills": {}
     }
 
     print("🔄 Running graph invoke...")

@@ -2,7 +2,7 @@ import os
 from langchain_core.messages import SystemMessage, ToolMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from .state import AgentState
-from .tools import available_tools, activate_skill
+from .tools import available_tools, activate_skill, get_available_skills_list
 
 # 在核心逻辑模块中初始化 LLM
 # 注意: 确保环境变量中设置了 OPENAI_API_KEY
@@ -11,29 +11,23 @@ llm_with_tools = llm.bind_tools(available_tools)
 
 def call_model(state: AgentState):
     """
-    核心思考节点：组装 Prompt 并调用大模型。
+    核心思考节点：组装结构化的 XML Prompt 并调用大模型。
     """
     messages = state["messages"]
-    # active_skills 现在是一个字典 {技能名: 协议内容}
     active_skills = state.get("active_skills", {})
     
-    system_prompt = (
-        "你是一个强大的 CLI 智能体，能够执行 Shell 命令。\n"
-        "当前工作目录: " + os.getcwd() + "\n\n"
-        "【重要策略】\n"
-        "1. 遇到复杂任务（如爬虫、PDF处理、数据分析），请**优先**检查并激活相关技能，而不是尝试自己写 Shell 脚本或安装新软件。\n"
-        "2. 如果需要处理图片或 PDF，请优先激活 `image_to_pdf` 技能。\n"
-        "3. 如果需要抓取网页，请优先激活 `web_scraper` 技能。\n"
-        "4. **[强制思考]** 绝不允许直接输出工具调用！在每一次返回 tool_calls 之前，你**必须**先在 content 字段中写下你的思考过程（Inner Monologue）。即使是连续执行任务，也要对每一步动作进行解释。\n"
-        "5. **[严格串行]** 如果你需要激活一个技能（`activate_skill`），**必须单独**调用该工具，然后等待下一轮对话。严禁在同一次回复中同时调用 `activate_skill` 和该技能下的脚本（`run_shell`），因为你必须先等待系统返回技能详情（包含脚本路径）后才能知道如何执行。"
-    )
+    # 获取本地可用技能清单 (XML 格式)
+    available_skills_xml = get_available_skills_list()
     
-    # 动态注入所有已激活的技能
+    # 组装结构化 System Prompt
+    system_prompt = f"<role>\n你是一个强大的模块化 CLI 智能体。你具备执行 Shell 命令的能力，并能通过激活外部技能扩展自己的功能。\n</role>\n\n<core_strategies>\n  <strategy>遇到复杂任务（如爬虫、PDF 处理、数据分析），请优先检查并激活相关技能，而不是尝试自己写脚本或安装新软件。</strategy>\n  <strategy>必须在 content 字段中输出 [强制思考]，解释你观察到了什么以及为什么选择接下来的动作。</strategy>\n  <strategy>严格分步：激活技能 (activate_skill) 与使用技能 (run_shell) 必须分两轮进行，严禁抢跑。</strategy>\n</core_strategies>\n\n{available_skills_xml}\n\n<current_context>\n  工作目录: {os.getcwd()}\n</current_context>"
+
+    # 动态注入已激活的技能详情
     if active_skills:
-        system_prompt += "\n\n=== 🌟 已激活技能列表 ==="
+        system_prompt += "\n\n<activated_skills>"
         for skill_name, content in active_skills.items():
-            system_prompt += f"\n\n[技能: {skill_name}]\n{content}"
-        system_prompt += "\n========================"
+            system_prompt += f'\n  <skill name="{skill_name}">\n    <instructions>\n{content}\n    </instructions>\n  </skill>'
+        system_prompt += "\n</activated_skills>"
     
     # 过滤掉旧的系统消息，确保上下文清晰
     clean_messages = [m for m in messages if not isinstance(m, SystemMessage)]

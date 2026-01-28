@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import sys
 from langchain_core.messages import HumanMessage, AIMessage
+from prompt_toolkit import PromptSession
+from prompt_toolkit.styles import Style
 from agent_core import build_graph
 
 def main():
@@ -13,7 +15,7 @@ def main():
     import os
     if not os.environ.get("OPENAI_API_KEY"):
         print("⚠️  警告：在环境变量中未找到 OPENAI_API_KEY。")
-        print("   请运行：export OPENAI_API_KEY='sk-...'")
+        print("   请运行：export OPENAI_API_KEY='sk-...' ")
         return
 
     # 初始化图
@@ -22,12 +24,22 @@ def main():
     chat_history = []
     active_skills = {} # 改为字典存储多技能
 
+    # 初始化交互 Session (支持历史记录、中文退格优化)
+    style = Style.from_dict({
+        'prompt': 'ansigreen bold',
+    })
+    session = PromptSession()
+
     while True:
         try:
-            user_input = input("用户> ")
+            user_input = session.prompt("用户> ", style=style)
             if user_input.lower() in ["exit", "quit"]:
                 break
             
+            # Skip empty input
+            if not user_input.strip():
+                continue
+
             inputs = {
                 "messages": chat_history + [HumanMessage(content=user_input)],
                 "active_skills": active_skills

@@ -1,5 +1,5 @@
 ---
-name: imagetopdf
+name: image_to_pdf
 description: 将指定目录下的多张图像合并为一个 PDF。
 ---
 
