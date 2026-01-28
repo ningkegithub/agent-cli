@@ -4,7 +4,7 @@
 [![LangGraph](https://img.shields.io/badge/Framework-LangGraph-purple.svg)](https://github.com/langchain-ai/langgraph)
 [![License-MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-这是一个基于 **LangGraph** 和 **OpenAI GPT-4o** 构建的高性能、模块化智能体命令行工具。它专为中文开发者环境深度定制，不仅是一个简单的 CLI 包装，更是一套具备自愈能力和透明思维的 Agent 运行框架。
+这是一个基于 **LangGraph** 和 **OpenAI** 模型（默认使用 **GPT-4o-mini**，支持切换）构建的高性能、模块化智能体命令行工具。它专为中文开发者环境深度定制，不仅是一个简单的 CLI 包装，更是一套具备自愈能力和透明思维的 Agent 运行框架。
 
 ## ✨ 核心亮点
 
