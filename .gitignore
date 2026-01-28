@@ -12,6 +12,7 @@ venv/
 *.pdf
 result.md
 /tests/*.png
+github_docs/
 
 # System
 .DS_Store
@@ -22,4 +23,6 @@ result.md
 
 # Gemini tmp
 .gemini/
-\n# Personal Context\nGEMINI.md
+
+# Personal Context
+GEMINI.md

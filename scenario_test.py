@@ -21,7 +21,7 @@ def run_scenario():
     # 定义用户的复杂指令
     # 我们分两步发指令，模拟用户交互
     steps = [
-        "请激活 web_scraper 和 imagetopdf 这两个技能。",
+        "请激活 web_scraper 和 image_to_pdf 这两个技能。",
         "现在，请帮我爬取 'https://www.python.org' 首页的所有图片，下载到 'downloaded_images' 目录，然后把它们合并成一个名为 'python_images.pdf' 的文件。"
     ]
 

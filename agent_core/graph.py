@@ -2,45 +2,39 @@ from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
 from .state import AgentState
-from .nodes import call_model, handle_skill_activation
+from .nodes import call_model, process_tool_outputs
 from .tools import available_tools
 
 def build_graph():
     workflow = StateGraph(AgentState)
 
-    # Add Nodes
+    # 1. 定义节点
     workflow.add_node("agent", call_model)
-    workflow.add_node("skill_handler", handle_skill_activation)
-    
-    # Standard ToolNode handles everything EXCEPT activate_skill (which is handled by skill_handler)
-    # Actually, ToolNode will try to handle all tools in the list.
-    # We need to make sure ToolNode only handles 'run_shell'.
-    # Or, we can let skill_handler handle activate_skill and let ToolNode handle the rest.
-    # However, ToolNode automatically executes based on tool_calls.
-    # Strategy: We use a custom conditional edge.
-    
-    # Filter tools for the standard node (only run_shell)
-    standard_tools = [t for t in available_tools if t.name != "activate_skill"]
-    workflow.add_node("tools", ToolNode(standard_tools))
+    # 使用标准 ToolNode 处理所有工具（包括 activate_skill 和 run_shell）
+    workflow.add_node("tools", ToolNode(available_tools))
+    # 新增状态更新节点，处理技能激活的副作用
+    workflow.add_node("skill_state_updater", process_tool_outputs)
 
-    # Set Entry Point
+    # 2. 设置入口
     workflow.set_entry_point("agent")
 
-    # Conditional Logic
+    # 3. 定义路由逻辑
     def should_continue(state: AgentState):
         last_message = state["messages"][-1]
+        # 如果没有工具调用，结束对话
         if not last_message.tool_calls:
             return END
-        
-        # Check if activate_skill is called
-        if any(tc["name"] == "activate_skill" for tc in last_message.tool_calls):
-            return "skill_handler"
-            
+        # 否则去执行工具
         return "tools"
 
-    # Add Edges
-    workflow.add_conditional_edges("agent", should_continue, ["skill_handler", "tools", END])
-    workflow.add_edge("skill_handler", "agent")
-    workflow.add_edge("tools", "agent")
+    # 4. 连接节点
+    # agent -> 判断 -> tools
+    workflow.add_conditional_edges("agent", should_continue, ["tools", END])
+    
+    # tools 执行完 -> 更新技能状态
+    workflow.add_edge("tools", "skill_state_updater")
+    
+    # 更新完状态 -> 回到 agent 继续思考
+    workflow.add_edge("skill_state_updater", "agent")
 
     return workflow.compile()

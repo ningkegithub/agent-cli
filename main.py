@@ -4,16 +4,16 @@ from langchain_core.messages import HumanMessage, AIMessage
 from agent_core import build_graph
 
 def main():
-    print("🤖 Modular Agent CLI (v1.0)")
+    print("🤖 模块化智能体 CLI (v1.0)")
     print("---------------------------")
-    print("Tip: Ask 'Merge images in current folder to PDF'.")
-    print("Type 'exit' to quit.\n")
+    print("提示：你可以试着说“把当前文件夹下的图片合并为 PDF”。")
+    print("输入 'exit' 或 'quit' 退出。\n")
     
     # Check API Key
     import os
     if not os.environ.get("OPENAI_API_KEY"):
-        print("⚠️  Warning: OPENAI_API_KEY not found in environment variables.")
-        print("   Please run: export OPENAI_API_KEY='sk-...'")
+        print("⚠️  警告：在环境变量中未找到 OPENAI_API_KEY。")
+        print("   请运行：export OPENAI_API_KEY='sk-...'")
         return
 
     # 初始化图
@@ -24,7 +24,7 @@ def main():
 
     while True:
         try:
-            user_input = input("User> ")
+            user_input = input("用户> ")
             if user_input.lower() in ["exit", "quit"]:
                 break
             
@@ -40,11 +40,15 @@ def main():
                 active_skills = event.get("active_skills", active_skills)
                 
                 if isinstance(last_msg, AIMessage):
+                    # 1. 如果有工具调用，content 视为思考过程
                     if last_msg.tool_calls:
+                        if last_msg.content:
+                            print(f"🧠 [思考] {last_msg.content.strip()}")
                         for tc in last_msg.tool_calls:
                             print(f"   🤖 动作: {tc['name']}({tc['args']})")
+                    # 2. 如果没有工具调用，content 视为最终回答
                     elif last_msg.content:
-                        print(f"Agent> {last_msg.content}")
+                        print(f"Agent> {last_msg.content.strip()}")
                 
             chat_history = event["messages"]
             print("")
