@@ -39,22 +39,35 @@ config:
     curve: linear
 ---
 graph TD;
-        __start__([开始]):::first
-        agent(🤖 决策核心<br/>Agent Node)
-        tools(🛠️ 工具执行<br/>Tool Node)
-        skill_state_updater(🔄 技能池更新<br/>Skill State Updater)
-        __end__([结束]):::last
+    __start__([开始]):::first
+    
+    subgraph Agent_Core [🤖 决策核心]
+        direction TB
+        Planning(任务规划 & 思考)
+        Guardrail{🛡️ 安全守卫<br/>Hard Guardrail}
+        Planning --> Guardrail
+    end
+    
+    tools(🛠️ 工具执行<br/>Tool Node<br/>含 Env Fix & Atomic Tools)
+    skill_state_updater(🔄 技能池更新<br/>Skill State Updater)
+    __end__([结束]):::last
 
-        __start__ --> agent;
-        agent -.-> |任务完成| __end__;
-        agent -.-> |需要调用工具| tools;
-        tools --> skill_state_updater;
-        skill_state_updater --> agent;
+    __start__ --> Agent_Core
+    Guardrail -->|合规工具调用| tools
+    Guardrail -.->|拦截违规操作| Planning
+    Guardrail -->|任务完成| __end__
+    
+    tools --> skill_state_updater
+    skill_state_updater --> Agent_Core
 
-        classDef default fill:#f2f0ff,stroke:#333,stroke-width:1px;
-        classDef first fill:#e1f5fe,stroke:#01579b;
-        classDef last fill:#eceff1,stroke:#455a64;
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef first fill:#e1f5fe,stroke:#01579b;
+    classDef last fill:#eceff1,stroke:#455a64;
 ```
+
+*   **决策核心**：负责规划任务、生成思考内容。内置**安全守卫**，物理拦截“并行读写”或“抢跑”行为。
+*   **工具执行**：执行 Shell 命令、文件读写或激活技能。内置**环境自修复**，自动重定向 Python 环境。
+*   **技能池更新**：拦截技能激活事件，实时扩展 Agent 的能力边界。
 
 ---
 
