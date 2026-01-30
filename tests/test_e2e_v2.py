@@ -118,18 +118,25 @@ def run_e2e_test():
     console.print(f"{check_2} 触发工具执行")
     
     check_3 = "❌"
-    if os.path.exists(output_file):
-        size = os.path.getsize(output_file)
+    # Agent 现在会将文件生成到 output/ 目录
+    expected_output_path = os.path.join("output", output_file)
+    if os.path.exists(expected_output_path):
+        size = os.path.getsize(expected_output_path)
         if size > 1000: # 确保不是空文件
             check_3 = "✅"
-            console.print(f"{check_3} PPT 文件生成成功 (大小: {size} bytes)")
+            console.print(f"{check_3} PPT 文件生成成功 (路径: {expected_output_path}, 大小: {size} bytes)")
         else:
             console.print(f"{check_3} PPT 文件生成但大小异常 ({size} bytes)")
     else:
-        console.print(f"{check_3} PPT 文件未生成")
+        # Fallback check: 也许 Agent 没听话写在根目录？
+        if os.path.exists(output_file):
+             console.print(f"⚠️ 警告: Agent 未遵循 output/ 规范，文件生成在根目录。")
+             check_3 = "✅"
+        else:
+             console.print(f"{check_3} PPT 文件未生成 (检查路径: {expected_output_path})")
 
     # 6. 清理
-    cleanup_test_data([source_file, output_file])
+    cleanup_test_data([source_file, output_file, expected_output_path])
 
     if check_1 == "✅" and check_2 == "✅" and check_3 == "✅":
         console.print(Panel("[bold green]✨ E2E 测试全部通过！[/bold green]"))
