@@ -24,6 +24,18 @@ Agent 采用“零预置”策略。当面临复杂任务时，Agent 会通过 `
 
 ---
 
+## 📂 目录结构
+
+*   `main.py`: 程序入口，负责模块组装。
+*   `cli/`: UI 与交互逻辑包。
+    *   `ui.py`: Rich 渲染组件。
+    *   `async_worker.py`: 异步执行线程。
+*   `agent_core/`: 智能体核心逻辑（LangGraph 定义）。
+*   `skills/`: 扩展技能池。
+*   `tests/`: 完备的测试套件。
+
+---
+
 ## 🏗️ 系统架构
 
 系统基于 LangGraph 的有向无环图 (DAG) 架构，内置多重安全与自愈机制：
