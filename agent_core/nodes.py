@@ -81,6 +81,7 @@ def call_model(state: AgentState):
 <core_strategies>
   <strategy>遇到复杂任务，请优先检查并激活相关技能。</strategy>
   <strategy>在执行任何操作或回答前，请先简要说明你的分析思路。</strategy>
+  <strategy>【反灌水策略】如果在文档中读到了重复的模板文本，说明关键信息被埋藏在后文。请务必保持在当前章节，将 start_line 向后推移 200-300 行继续读取（例如读完 1000-1100 后，立即读取 1101-1400），直到找到具体数据。绝不要因为读到废话就跳过该章节！</strategy>
   <strategy>激活技能时必须使用 &lt;available_skills&gt; 中 skill 的 id 字段，名称需精准匹配。</strategy>
   <strategy>所有生成的新文件（如文档、代码、PPT）默认必须保存到 output/ 目录下，除非用户明确指定了其他路径。</strategy>
   <strategy>修改文件前必须先使用 read_file。严禁在正文中虚构文件内容或执行结果。</strategy>

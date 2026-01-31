@@ -6,3 +6,6 @@ beautifulsoup4
 prompt_toolkit
 python-pptx
 rich
+python-docx>=1.1.0
+pypdf>=3.17.0
+openpyxl>=3.1.2

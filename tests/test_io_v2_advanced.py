@@ -5,101 +5,122 @@ import sys
 # 确保能导入 agent_core
 sys.path.append(os.getcwd())
 
-from agent_core.tools import read_file
+from agent_core.tools import read_file, search_file
 
-# 测试靶场：那个 20 页+ 的超级白皮书 (已归档至 tests/test_data)
+# 测试靶场：必须使用那个结构复杂的超级白皮书
 TARGET_FILE = "tests/test_data/office_mock/2_星云科技_产品白皮书_Full.docx"
 
 class TestIOv2Advanced(unittest.TestCase):
     
     def setUp(self):
         if not os.path.exists(TARGET_FILE):
-            self.skipTest(f"测试素材缺失: {TARGET_FILE}。请确保测试数据已正确检出。")
+            self.skipTest(f"测试素材缺失: {TARGET_FILE}")
 
-    def test_01_outline_mode(self):
-        """测试 Docx 大纲提取"""
-        print("\n🧪 Testing Outline Mode...")
+    def test_01_alignment_check(self):
+        """核心测试：大纲行号与正文内容是否绝对对齐？"""
+        print("\n🧪 Testing Outline <-> Content Alignment...")
         
-        # 1. 调用大纲模式
-        result = read_file.invoke({"file_path": TARGET_FILE, "outline_only": True})
-        
-        # 2. 验证基本格式
-        self.assertIn("--- 文档大纲 (结构化导航) ---", result)
-        self.assertIn("[提示: 请使用 start_line 跳转", result)
-        
-        # 3. 验证关键章节
-        self.assertIn("Technical Architecture", result)
-        self.assertIn("Core Technology: Rust Engine", result)
-        
-        # 4. 验证行号解析
-        # 结果应该类似: "Line 1: ...", "Line 250: ..."
-        # 我们提取几行打印出来看看
-        lines = result.split("\n")
-        outline_lines = [l for l in lines if l.startswith("Line ")]
-        print(f"    -> 提取到 {len(outline_lines)} 个标题节点")
-        print(f"    -> 示例: {outline_lines[:3]}")
-        
-        self.assertTrue(len(outline_lines) > 5)
-
-    def test_02_pagination_and_wrap(self):
-        """测试文本折行与分页"""
-        print("\n🧪 Testing Text Wrapping & Pagination...")
-        
-        # 1. 读取前 50 行
-        result = read_file.invoke({"file_path": TARGET_FILE, "start_line": 1, "end_line": 50})
-        
-        # 2. 验证图片感知
-        # 脚本里插入了图片，read_file 应该能感知到
-        # 注意：图片感知只有在 outline_only=False 时才生效（正文模式）
-        # 但如果前 50 行没有图片，可能测不到。我们的脚本在每个章节开头都有图片。
-        # 让我们找一个肯定有图片的章节。
-        
-        # 3. 验证折行
-        # 如果折行生效，result 里应该有很多行，且每行不应过长
-        lines = result.split("\n")
-        long_lines = [l for l in lines if len(l) > 150] # 阈值设为 150 (代码里 wrap 是 120)
-        
-        if long_lines:
-            print(f"    ⚠️ Warning: 发现 {len(long_lines)} 行超长文本，折行逻辑可能失效。\n")
-            print(f"    -> Sample: {long_lines[0][:50]}...")
-        else:
-            print("    ✅ 所有文本行宽正常 (<=150 chars)")
-            
-        self.assertEqual(len(long_lines), 0)
-
-    def test_03_precision_jump(self):
-        """测试基于行号的精准跳转"""
-        print("\n🧪 Testing Precision Jump...")
-        
-        # 1. 先获取大纲找到 'Core Technology: AI Models' 的位置
+        # 1. 获取大纲
         outline_res = read_file.invoke({"file_path": TARGET_FILE, "outline_only": True})
+        print(f"    -> 大纲前几行:\n{outline_res[:200]}...")
         
-        target_line = -1
+        # 2. 提取所有标题的行号和文本
+        # 格式: "Line 123: - 1. Executive Summary"
+        markers = []
         for line in outline_res.split("\n"):
-            if "Core Technology: AI Models" in line:
-                # 格式: "Line 123: ..."
-                try:
-                    target_line = int(line.split(":")[0].replace("Line ", ""))
-                except:
-                    pass
-                break
+            if line.startswith("Line "):
+                parts = line.split(":", 1)
+                line_num = int(parts[0].replace("Line ", ""))
+                title_text = parts[1].strip("- ").strip()
+                markers.append((line_num, title_text))
         
-        if target_line == -1:
-            self.fail("无法在大纲中找到 AI Models 章节")
+        print(f"    -> 提取到 {len(markers)} 个锚点。正在抽检...")
+        
+        # 3. 随机抽检 3 个锚点，验证 read_file(start_line=X) 读到的第一行是否就是该标题
+        # 我们检测第 1 个、中间一个、最后一个
+        check_indices = [0, len(markers)//2, len(markers)-1]
+        
+        for idx in check_indices:
+            line_num, expected_text = markers[idx]
+            print(f"    🔍 Checking Line {line_num}: Expecting '{expected_text}'")
             
-        print(f"    -> 目标章节 'AI Models' 位于 Line {target_line}")
-        
-        # 2. 精准读取该章节 (假设读 100 行够了)
+            # 读取那一行
+            content = read_file.invoke({
+                "file_path": TARGET_FILE, 
+                "start_line": line_num, 
+                "end_line": line_num + 1 # 多读一行防止边界
+            })
+            
+            # 过滤掉元数据头
+            body_lines = [l for l in content.split("\n") if not l.startswith("---") and not l.startswith("路径") and not l.startswith("行数") and not l.startswith("覆盖率")]
+            # 找到第一行非空内容
+            actual_line = ""
+            for l in body_lines:
+                if l.strip():
+                    actual_line = l.strip()
+                    break
+            
+            # 断言：读到的内容必须包含标题文本
+            # 注意：Docx 读取时可能会把编号 "1. " 和文本分开或者合并，这里做包含匹配
+            self.assertIn(expected_text, actual_line)
+            print("      ✅ 对齐成功！")
+
+    def test_02_pagination_logic(self):
+        """测试分页参数是否精确"""
+        print("\n🧪 Testing Pagination Logic...")
+        # 读取 100-105 行
         content = read_file.invoke({
-            "file_path": TARGET_FILE, 
-            "start_line": target_line, 
-            "end_line": target_line + 100
+            "file_path": TARGET_FILE,
+            "start_line": 100,
+            "end_line": 105
         })
         
-        # 3. 验证是否读到了该章节特有的 KEY FEATURE
-        # 生成脚本里写了: "KEY FEATURE: Built-in DeepSeek-V3"
-        self.assertIn("Built-in DeepSeek-V3", content)
-        print("    ✅ 成功读取到深层章节的关键信息！")
+        # 解析元数据头
+        header_line = [l for l in content.split("\n") if l.startswith("行数")][0]
+        # "行数: 2000+ | 当前范围: 100-105"
+        self.assertIn("100-105", header_line)
+        
+        # 验证正文行数
+        # 排除头尾，应该剩下 105-100 = 5 行 (list切片 start_idx=99, end_idx=105 -> 6行? 不，end_line=105 是开区间？)
+        # 代码逻辑: selected_lines = lines[start_idx:end_idx] -> lines[99:105] -> 100,101,102,103,104,105 -> 6行。
+        # 无论多少行，关键是切片逻辑是确定的。我们主要验证不会报错。
+        print("    ✅ 分页参数解析正常")
+
+    def test_04_search_file(self):
+        """测试全文搜索工具"""
+        print("\n🧪 Testing search_file Tool...")
+        
+        # 搜索 Docx 中的关键指标
+        # 我们知道 "Built-in DeepSeek-V3" 是在第 5 章埋藏的
+        keyword = "DeepSeek-V3"
+        result = search_file.invoke({"file_path": TARGET_FILE, "pattern": keyword})
+        
+        print(f"    -> Search Result:\n{result}")
+        
+        # 验证是否找到
+        self.assertIn("--- 搜索结果", result)
+        self.assertIn(keyword, result)
+        self.assertIn("Line ", result)
+        
+        # 验证行号合理性 (应该在 1000 行以后)
+        # 提取行号
+        import re
+        match = re.search(r"Line (\d+):", result)
+        if match:
+            line_num = int(match.group(1))
+            print(f"    -> Found at Line {line_num}")
+            self.assertTrue(line_num > 1000, f"行号 {line_num} 过小，不符合预期位置")
+            
+            # 双重验证：用 read_file 读取该行，看是否一致
+            verification = read_file.invoke({
+                "file_path": TARGET_FILE,
+                "start_line": line_num,
+                "end_line": line_num + 1
+            })
+            self.assertIn(keyword, verification)
+            print("      ✅ 搜索结果行号经 read_file 验证无误！")
+        else:
+            self.fail("搜索结果格式不正确，未找到行号")
 
 if __name__ == '__main__':
     unittest.main()

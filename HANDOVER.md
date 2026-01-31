@@ -77,28 +77,32 @@
 
 ## 📅 2026-01-31
 
-### 👨‍💻 交班人: Gemini (Refactoring Specialist)
+### 👨‍💻 交班人: Gemini (Refactoring & Feature Specialist)
 
 #### ✅ 已完成工作 (Done)
 1.  **UI 交互重构 (Stream-First Architecture)**：
-    -   **解决内容重复**：重构 `main.py` 渲染循环，确立了 "Stream 负责 AI 文本，Updates 负责工具展示" 的分权原则，彻底修复了 AI 回复被重复渲染的 Bug。
-    -   **工具展示优化**：工具调用的蓝色面板现在展示完整的参数（Args），并去除了低对比度的 `dim` 样式，确保信息清晰可见。支持长参数智能截断。
-    -   **自然流交互**：移除了 System Prompt 中所有强制性的 `🧠 [思考]` 标签要求，让 Agent 以自然语言进行分析，提升了对话的沉浸感。
-2.  **稳健性修复**：
-    -   修复 `main.py` 中 `rich.panel.Panel` 导入缺失的问题。
-    -   修复工具调用在 Stream 模式下参数不完整的问题（改为在 Updates 模式下渲染完整 Panel）。
-3.  **测试适配**：
-    -   更新 `tests/test_model_output_constraints.py` 和 `tests/test_guardrail.py`，移除对旧式表情前缀的断言，适配新的自然语言逻辑。
-4.  **遗留清理**：
-    -   移除了冗余的 `skills/deep-coder`（已通过用户目录加载）。
+    -   (同前) 修复内容重复，优化工具展示面板。
+2.  **文件 I/O 能力飞跃 (File I/O 2.1)**：
+    -   **多格式解析**：`read_file` 现在原生支持 `.docx`, `.pdf`, `.xlsx`。
+        -   PDF/Word 提取文本并支持 **图片感知 (Image Placeholder)**。
+        -   Excel 自动读取所有 Sheet 并转换为 CSV 格式输出。
+    -   **长文档导航 (Navigation)**：
+        -   **大纲模式**：`read_file(outline_only=True)` 返回带行号的文档目录，实现上帝视角。
+        -   **全文搜索**：新增 `search_file` 工具，支持正则，是在海量文本中定位关键指标（如 "QPS", "价格"）的终极武器。
+    -   **原子编辑能力**：新增 `replace_in_file` 工具，支持基于上下文的精准字符串替换，避免全量重写。
+3.  **策略优化 (Prompt Tuning)**：
+    -   **反灌水策略**：System Prompt 中植入了针对长文档的“深读”指令。当 Agent 遇到重复废话时，会自动尝试向后推移读取窗口，或切换为搜索模式。
+4.  **稳健性与测试**：
+    -   新增 `tests/test_io_v2_advanced.py`，验证了大纲提取、行号绝对对齐、搜索准确性。
+    -   更新 `requirements.txt` 引入 `python-docx`, `pypdf`, `openpyxl`。
 
 #### 🧪 已运行测试 (Tests)
-- `./venv/bin/python3 tests/test_model_output_constraints.py` (Passed)
-- `./venv/bin/python3 tests/test_guardrail.py` (Passed)
-- 手动验证：UI 流畅度、工具调用显示、Ctrl+C 中断。
+- `PYTHONPATH=. ./venv/bin/python3 tests/test_io_v2_advanced.py` (Passed)
+- 手动验证：售前方案生成场景（处理 20页+ Word 和 多 Sheet Excel）。
 
 #### ⚠️ 注意事项 (Notes)
-- **渲染逻辑**：现在 `main.py` 里的逻辑是：AI 的 `content` 走 `stream` 通道实时上屏；`tool_calls` 的面板展示走 `updates` 通道（在 `AIMessage` 完整生成后）。切勿在 stream 通道里打印工具面板，否则会得到空的参数。
-- **Prompt 策略**：目前的 Prompt 鼓励 Agent "在执行复杂操作前简要分析"，但不强制格式。如需 CoT，建议依赖模型自身能力或显式要求。
+- **多模态路径**：PDF 中的图片目前仅插入 `[IMAGE_PLACEHOLDER]` 标记。这为后续接入多模态视觉模型留下了上下文锚点。
+- **依赖管理**：新引入的 Office 库较大，在 CI 环境中需注意安装时间。
+- **Prompt 引导**：对于极端复杂的文档，建议在 User Prompt 中显式提醒 Agent "善用 search_file 工具"，这能显著提升成功率。
 
 ---
