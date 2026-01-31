@@ -17,8 +17,10 @@ def render_header():
     console.print("🚪 输入 [bold red]exit[/bold red] 退出。\n")
 
 def get_spinner_text(phrase, elapsed):
-    # [安全] 确保文案被转义
-    safe_phrase = escape(phrase) if "正在调用工具" not in phrase else phrase
+    # [安全] 确保文案被转义，除非它是我们自己构造的带有样式标签的系统文案
+    is_safe_system_msg = "正在调用工具" in phrase or "准备执行" in phrase
+    safe_phrase = phrase if is_safe_system_msg else escape(phrase)
+    
     return Text.from_markup(
         f"[cyan]⠋[/cyan] {safe_phrase} "
         f"[dim]({elapsed:.1f}s)[/dim] "
