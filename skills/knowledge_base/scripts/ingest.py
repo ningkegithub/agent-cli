@@ -12,19 +12,27 @@ from skills.knowledge_base.scripts.db_manager import DBManager
 
 def chunk_text_by_lines(text, chunk_size=20, overlap=5):
     """
-    按行切分文本，保证行号精准。
-    返回: List[dict] -> [{'text': '...', 'lines': '10-30'}]
+    按行切分文本，并尝试提取语义化的位置信息（如 Slide 1, Page 2, Sheet Name）。
+    返回: List[dict] -> [{'text': '...', 'lines': '10-30', 'location': 'Slide 5'}]
     """
-    # 移除 read_file 返回的 header/footer (通过简单的 split)
     lines = text.splitlines()
-    
-    # 过滤掉 header (--- 文件元数据 ---) 和 footer ([SYSTEM WARNING])
-    # 简单策略：找到第一个不以 --- 开头的行作为开始？
-    # 或者直接相信 lines，因为 read_file 输出的内容主要是 body
-    # 为了稳健，我们暂时全量切分，Agent 检索到 header 也没坏处
-    
     chunks = []
     total_lines = len(lines)
+    
+    # 预扫描：建立行号到位置的映射
+    # line_location_map[line_index] = "Slide 1"
+    line_location_map = {}
+    current_location = "Unknown Location"
+    
+    import re
+    # 匹配模式: --- Slide 1 ---, --- Page 1 ---, --- Sheet: Sheet1 ---
+    loc_pattern = re.compile(r'^--- (Slide \d+|Page \d+|Sheet: .+) ---$')
+    
+    for i, line in enumerate(lines):
+        match = loc_pattern.match(line.strip())
+        if match:
+            current_location = match.group(1)
+        line_location_map[i] = current_location
     
     for i in range(0, total_lines, chunk_size - overlap):
         end = min(i + chunk_size, total_lines)
@@ -33,15 +41,35 @@ def chunk_text_by_lines(text, chunk_size=20, overlap=5):
         
         if not chunk_content: continue
         
+        # 获取当前 Chunk 对应的主要位置（取中间行的位置，或者起始行的位置）
+        # 取起始行的位置通常比较准，因为 Context 覆盖了后文
+        # 但如果 Chunk 跨页了怎么办？
+        # 我们可以记录 range，例如 "Slide 1 - Slide 2"
+        start_loc = line_location_map.get(i, "Unknown")
+        end_loc = line_location_map.get(end-1, "Unknown")
+        
+        if start_loc == end_loc:
+            location = start_loc
+        else:
+            location = f"{start_loc} -> {end_loc}"
+            
         chunks.append({
             "text": chunk_content,
             "line_start": i + 1,
-            "line_end": end
+            "line_end": end,
+            "location": location
         })
         
         if end == total_lines: break
         
     return chunks
+
+def ingest_file(file_path, collection_name="documents"):
+    # ... (前文读取逻辑保持不变)
+    # 既然我们要修改 chunking 逻辑，我们需要把 ingest_file 的后半部分也替换掉
+    # 为了稳妥，我将替换整个 ingest_file 函数的后半部分
+    pass
+
 
 def ingest_file(file_path, collection_name="documents"):
     print(f"📄 Processing: {file_path}")
@@ -102,14 +130,19 @@ def ingest_file(file_path, collection_name="documents"):
             "text": chunk['text'],
             "source": os.path.basename(file_path),
             "line_range": f"{chunk['line_start']}-{chunk['line_end']}",
+            "location": chunk['location'], # 新增：人类可读位置
             "type": "document"
         })
         
     # 4. 写入 DB
+    # 检查 Schema 兼容性
+    is_compatible = db.check_schema_compatibility(collection_name, data[0])
+    
     tbl = db.get_table(collection_name)
-    if tbl:
+    if tbl and is_compatible:
         tbl.add(data)
     else:
+        # 如果表不存在，或者刚才因为不兼容被删除了，这里会创建新表
         db.create_table(collection_name, data)
         
     print(f"✅ Ingested {len(data)} vectors to '{collection_name}'.")

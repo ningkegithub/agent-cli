@@ -36,6 +36,30 @@ class DBManager:
             # 表不存在，返回 None，由调用方负责 create_table
             return None
 
+    def check_schema_compatibility(self, table_name, sample_data):
+        """检查表结构是否与新数据兼容"""
+        tbl = self.get_table(table_name)
+        if not tbl: return True
+        
+        try:
+            # 获取表的第一条数据来看看 keys
+            # LanceDB 0.25+ schema 获取方式
+            schema = tbl.schema
+            existing_fields = set(schema.names)
+            new_fields = set(sample_data.keys())
+            
+            # 检查是否有新字段是旧表没有的
+            missing_in_db = new_fields - existing_fields
+            if missing_in_db:
+                print(f"⚠️ [Schema Warning] Table '{table_name}' is missing fields: {missing_in_db}")
+                print(f"♻️ Auto-migrating: Dropping old table to apply new schema...")
+                self.db.drop_table(table_name)
+                return False # Table dropped, caller should create new
+            return True
+        except Exception as e:
+            print(f"Schema check failed: {e}")
+            return True # Assume compatible to avoid accidental deletion
+
     def create_table(self, table_name, data):
         """创建新表"""
         # data 是一个 list of dict，包含 'vector' 字段和其他字段

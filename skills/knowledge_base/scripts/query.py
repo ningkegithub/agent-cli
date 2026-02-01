@@ -31,11 +31,12 @@ def search(query, collection_name="documents", limit=5):
         score = 1.0 - res.get('_distance', 0) # 距离越小越相似，这里粗略转为分数
         source = res['source']
         lines = res['line_range']
+        location = res.get('location', 'Unknown') # 新增
         content = res['text'].replace("\n", " ").strip()
         if len(content) > 200: content = content[:200] + "..."
         
         output.append(f"[{i+1}] {content}")
-        output.append(f"    Source: {source} | Line: {lines} | Score: {score:.4f}")
+        output.append(f"    Source: {source} | Loc: {location} | Line: {lines} | Score: {score:.4f}")
         
     return "\n".join(output)
 

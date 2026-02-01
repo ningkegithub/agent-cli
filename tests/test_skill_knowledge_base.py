@@ -81,6 +81,51 @@ class TestSkillKnowledgeBase(unittest.TestCase):
         
         print("  ✅ RAG Lifecycle Test Passed!")
 
+    def test_schema_migration(self):
+        """测试数据库 Schema 自动演进/重建"""
+        print("\n🧪 Testing Schema Migration...")
+        
+        # 1. 手动创建一个旧格式的表 (缺少 'location' 字段)
+        sys.path.append(os.getcwd())
+        from skills.knowledge_base.scripts.db_manager import DBManager
+        db = DBManager.get_instance()
+        
+        MIGRATION_COLLECTION = "test_migration_rag"
+        db.reset_table(MIGRATION_COLLECTION)
+        
+        # 插入一条旧数据
+        old_data = [{"vector": [0.1]*384, "text": "Old data", "source": "old.txt", "type": "doc", "line_range": "1-1"}]
+        # 注意：这里我们得绕过 create_table 的自动推断，强制创建一个少字段的表？
+        # 或者直接用 create_table，只要 data 里没有 location，schema 就不会有 location
+        db.create_table(MIGRATION_COLLECTION, data=old_data)
+        print("  [1/3] Created old schema table.")
+        
+        # 验证旧 Schema
+        tbl = db.get_table(MIGRATION_COLLECTION)
+        self.assertNotIn("location", tbl.schema.names)
+        
+        # 2. 运行 ingest.py 插入新数据 (包含 location)
+        print("  [2/3] Ingesting new data (should trigger migration)...")
+        # ingest.py 会读取真实文件，产生带 location 的 data
+        res = self.run_script("ingest.py", [TEST_DATA_FILE, MIGRATION_COLLECTION])
+        
+        # 验证输出中是否有迁移提示 (因为我们在脚本里 print 了)
+        # 注意：subprocess capture_output 可能会捕捉不到实时 print，但最终 stdout 会有
+        self.assertIn("Auto-migrating", res.stdout)
+        self.assertIn("Ingested", res.stdout)
+        
+        # 3. 验证新 Schema
+        print("  [3/3] Verifying new schema...")
+        tbl_new = db.get_table(MIGRATION_COLLECTION)
+        self.assertIn("location", tbl_new.schema.names)
+        
+        # 验证新数据是否在里面
+        # 由于我们采取的是 Drop & Create，旧数据没了，新数据在
+        count = tbl_new.count_rows()
+        self.assertGreater(count, 0)
+        
+        print("  ✅ Schema Migration Test Passed!")
+
     @classmethod
     def tearDownClass(cls):
         # 清理测试产生的 Collection
