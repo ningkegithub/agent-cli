@@ -123,16 +123,24 @@ def ingest_file(file_path, collection_name="documents"):
     db = DBManager.get_instance()
     vectors = db.embed_documents([c['text'] for c in chunks])
     
+    # 计算相对路径，方便 Agent 后续读取
+    try:
+        rel_path = os.path.relpath(file_path, PROJECT_ROOT)
+    except ValueError:
+        # 如果跨盘符（Windows）或路径异常，回退到原始路径
+        rel_path = file_path
+
     data = []
     for i, chunk in enumerate(chunks):
         data.append({
             "vector": vectors[i],
             "text": chunk['text'],
-            "source": os.path.basename(file_path),
+            "source": rel_path, # [修改] 存储相对路径
             "line_range": f"{chunk['line_start']}-{chunk['line_end']}",
-            "location": chunk['location'], # 新增：人类可读位置
+            "location": chunk['location'], 
             "type": "document"
         })
+
         
     # 4. 写入 DB
     # 检查 Schema 兼容性
