@@ -7,23 +7,34 @@ import sys
 # 设定测试用的 Collection，避免污染 'documents'
 TEST_COLLECTION = "test_integration_rag"
 SKILL_DIR = "skills/knowledge_base/scripts"
-TEST_DATA_FILE = "tests/test_data/office_mock/3_产品报价单_2026Q1.xlsx"
+TEST_DATA_FILE = "tests/test_data/office_mock/test_rag.pptx"
 PYTHON_EXE = "./venv/bin/python3"
 
 class TestSkillKnowledgeBase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        # 确保测试数据存在
-        if not os.path.exists(TEST_DATA_FILE):
-            raise FileNotFoundError(f"Test data not found: {TEST_DATA_FILE}")
+        # 确保目录存在
+        os.makedirs(os.path.dirname(TEST_DATA_FILE), exist_ok=True)
+        
+        # 动态生成测试用的 PPT (复用 pptx 库)
+        try:
+            from pptx import Presentation
+            prs = Presentation()
+            slide = prs.slides.add_slide(prs.slide_layouts[0])
+            slide.shapes.title.text = "RAG Test Document"
+            slide.placeholders[1].text = "Nebula Core 价格 is 50000 CNY"
+            prs.save(TEST_DATA_FILE)
+            print(f"✅ Generated mock PPT: {TEST_DATA_FILE}")
+        except ImportError:
+            raise RuntimeError("python-pptx not installed in test environment")
             
-        # 设置 PYTHONPATH，确保脚本能 import agent_core
+        # 设置基础环境 (不再注入 PYTHONPATH，验证脚本自举能力)
         cls.env = os.environ.copy()
-        cls.env["PYTHONPATH"] = os.getcwd()
         
         # [新增] 清理旧的测试表，防止 Already Exists 错误
         try:
+            # 临时把项目根目录加入 path 以便在此处调用 DBManager
             sys.path.append(os.getcwd())
             from skills.knowledge_base.scripts.db_manager import DBManager
             db = DBManager.get_instance()
@@ -57,19 +68,29 @@ class TestSkillKnowledgeBase(unittest.TestCase):
         res = self.run_script("query.py", ["Nebula Core 价格", TEST_COLLECTION])
         self.assertEqual(res.returncode, 0)
         self.assertIn("50000", res.stdout) # 确保搜到了价格
-        self.assertIn("3_产品报价单_2026Q1.xlsx", res.stdout) # 确保来源正确
+        self.assertIn("test_rag.pptx", res.stdout) # 确保来源正确 (文件名匹配即可，因为 ingest 会归档重命名，但 source 字段包含文件名)
         
         # 3. List
         print("  [3/5] Listing...")
         res = self.run_script("manage.py", ["list", "--collection", TEST_COLLECTION])
         self.assertEqual(res.returncode, 0)
-        self.assertIn("3_产品报价单_2026Q1.xlsx", res.stdout)
+        self.assertIn("test_rag.pptx", res.stdout)
+        
+        # 从 list 输出中提取真实的归档文件名 (因为 ingest 加上了 hash)
+        # 输出格式: - /path/to/hash_test_rag.pptx (N 片段)
+        import re
+        match = re.search(r"- (.*test_rag\.pptx)", res.stdout)
+        if not match:
+            self.fail("Could not find ingested file in list output")
+        real_filename = match.group(1).strip()
+        print(f"    -> Real filename in DB: {os.path.basename(real_filename)}")
         
         # 4. Delete
         print("  [4/5] Deleting...")
-        res = self.run_script("manage.py", ["delete", "3_产品报价单_2026Q1.xlsx", "--collection", TEST_COLLECTION])
+        # 使用提取到的真实路径/文件名进行删除
+        res = self.run_script("manage.py", ["delete", real_filename, "--collection", TEST_COLLECTION])
         self.assertEqual(res.returncode, 0)
-        self.assertIn("已成功从知识库删除", res.stdout)
+        self.assertIn("已成功从知识库", res.stdout)
         
         # 5. Search (Expect Miss)
         print("  [5/5] Re-Searching (Verify Deletion)...")

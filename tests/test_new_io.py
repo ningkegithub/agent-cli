@@ -33,28 +33,25 @@ class TestNewIO(unittest.TestCase):
         
         # 验证行数
         lines = content.strip().split("\n")
-        # 第一行是 [系统提示] 元数据
-        self.assertTrue("系统提示" in lines[0])
+        # 第一行是元数据
+        self.assertIn("--- 文件元数据 ---", lines[0])
+        self.assertIn("当前范围: 10-20", content)
         
-        real_lines = lines[1:]
-        # start_line=10 (Line 10), end_line=20.
-        # Python slice [9:20] -> 11 items.
-        # But wait, logic is lines[start_idx:end_idx].
-        # start_idx = 9, end_idx = 20.
-        # Line 10 (idx 9) ... Line 20 (idx 19). Total 11 lines.
-        # Let's verify output content.
-        
-        self.assertEqual(len(real_lines), 11)
-        self.assertIn("Line 10:", real_lines[0])
-        self.assertIn("Line 20:", real_lines[-1])
+        # 实际内容从 Header 之后开始
+        # 找到第一个空行后的内容
+        body_lines = [l for l in lines if l.startswith("Line ")]
+        self.assertEqual(len(body_lines), 11)
+        self.assertIn("Line 10:", body_lines[0])
+        self.assertIn("Line 20:", body_lines[-1])
 
     def test_read_file_truncation(self):
         """测试默认截断"""
         print("\n🧪 Testing read_file default truncation...")
         content = read_file.invoke({"file_path": TEST_FILE}) # 默认读 500 行
         
-        self.assertIn("系统提示", content)
-        self.assertIn("文件过长", content)
+        self.assertIn("--- 文件元数据 ---", content)
+        self.assertIn("[SYSTEM WARNING]", content)
+        self.assertIn("文件未读完", content)
         
         lines = content.split("\n")
         self.assertTrue(len(lines) >= 500)
@@ -84,7 +81,7 @@ class TestNewIO(unittest.TestCase):
         
         res = replace_in_file.invoke({"file_path": path, "old_string": "Hello", "new_string": "Hi"})
         self.assertIn("错误", res)
-        self.assertIn("出现了多次", res)
+        self.assertIn("不唯一", res)
         
         # 验证文件未被修改
         content = read_file.invoke({"file_path": path})
