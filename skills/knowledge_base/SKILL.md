@@ -16,7 +16,7 @@ description: 基于 LanceDB 的本地知识库与记忆中枢。支持 Word/PDF/
 
 - **Vector DB**: LanceDB (本地文件存储，无需服务器)
 - **Embedding**: FastEmbed (BAAI/bge-small-zh-v1.5) - 轻量级中文 SOTA 模型
-- **Storage**: `~/.gemini/memory/lancedb_store`
+- **Storage**: `~/.agent-cli/memory/lancedb_store`
 
 ## 工具清单
 

@@ -3,7 +3,8 @@ import lancedb
 from fastembed import TextEmbedding
 
 # 配置常量
-DB_PATH = os.path.expanduser("~/.gemini/memory/lancedb_store")
+# [修正] 使用 .agent-cli 作为用户数据目录
+DB_PATH = os.path.expanduser("~/.agent-cli/memory/lancedb_store")
 EMBEDDING_MODEL_NAME = "BAAI/bge-small-zh-v1.5" # 优秀的中文模型，体积适中
 
 class DBManager:
