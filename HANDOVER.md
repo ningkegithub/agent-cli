@@ -83,7 +83,8 @@
 1.  **UI 交互重构 (Stream-First Architecture)**：
     -   (同前) 修复内容重复，优化工具展示面板。
 2.  **文件 I/O 能力飞跃 (File I/O 2.1)**：
-    -   **多格式解析**：`read_file` 现在原生支持 `.docx`, `.pdf`, `.xlsx`。
+    -   **多格式解析**：`read_file` 现在原生支持 `.docx`, `.pdf`, `.xlsx`, `.pptx`。
+        -   **PPTX**: 支持提取幻灯片正文及**演讲者备注 (Notes)**，这是获取售前方案核心亮点的关键。
         -   PDF/Word 提取文本并支持 **图片感知 (Image Placeholder)**。
         -   Excel 自动读取所有 Sheet 并转换为 CSV 格式输出。
     -   **长文档导航 (Navigation)**：
