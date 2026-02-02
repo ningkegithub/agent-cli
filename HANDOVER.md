@@ -10,16 +10,23 @@
 ### 👨‍💻 交班人: Gemini (Brand Specialist)
 
 #### ✅ 已完成工作 (Done)
-1.  **品牌升级 (Rebranding)**：
+1.  **记忆管理重构 (Memory Management 2.0)**：
+    -   **工具合并与增强**：废弃了功能单一的 `remember` 工具，引入全能型 `manage_memory(content, action)`。
+        -   `action='add'`: 写入前执行智能相似度检查（difflib > 0.85），防止记忆重复堆叠。
+        -   `action='delete'`: 支持物理删除（抹除）包含特定关键词的记忆行，彻底解决“追加式遗忘”无效的问题。
+    -   **策略优化**：更新 System Prompt，明确区分【长期记忆】（直接复述标签）与【情景回忆】（查向量库），并强制 Agent 在遗忘时使用删除工具。
+    -   **测试覆盖**：新增 `tests/test_memory_management.py`，覆盖了增、删、去重、异常处理全链路，确保记忆操作的原子性和安全性。
+2.  **品牌升级 (Rebranding)**：
     -   项目正式更名为 **ZX CLI (ZhiXing / 知行)**，Slogan 更新为 "知行合一，极致执行"。
     -   GitHub 远程仓库已更名为 `zx-cli`。
     -   更新了 `README.md`、`GEMINI.md` 及 `cli/ui.py` 中的品牌标识。
-2.  **记忆清理**：
+3.  **记忆清理**：
     -   移除了关于“心学文化”的旧记忆，明确了项目的纯粹工具定位。
-3.  **UI 焕新**：
+4.  **UI 焕新**：
     -   启动横幅 (Banner) 已更新为 ZX CLI 样式，并提供了体现全栈能力的示例 Query。
 
 #### 🧪 已运行测试 (Tests)
+- `python3 tests/test_memory_management.py` (Pass) - 验证记忆增删改逻辑。
 - `git status` 确认文件变更无误。
 - `gh repo rename` 确认远程仓库已更名。
 

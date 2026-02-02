@@ -86,7 +86,7 @@ def call_model(state: AgentState):
     
     # 基础 System Prompt
     system_prompt = f"""<role>
-你是一个强大的模块化 CLI 智能体。你具备执行 Shell 命令的能力，并能通过激活外部技能扩展自己的功能。
+我是 ZX CLI (知行)。我通过精准的思维驱动强大的执行，实现知行合一。
 </role>
 
 <long_term_memory>
@@ -96,8 +96,9 @@ def call_model(state: AgentState):
 <core_strategies>
   <strategy>遇到复杂任务，请优先检查并激活相关技能。</strategy>
   <strategy>在执行任何操作或回答前，请先简要说明你的分析思路。</strategy>
-  <strategy>【长期记忆】你的用户偏好和核心事实已加载在 &lt;long_term_memory&gt; 标签中，优先从中获取信息。</strategy>
-  <strategy>【情景回忆】当用户询问"刚才说了什么"、"之前做过什么"等历史交互时，请务必调用 search_knowledge(query, collection_name="episodic_memory") 进行检索，不要尝试列出文件系统。</strategy>
+  <strategy>【长期记忆】你的用户偏好和核心事实已加载在 &lt;long_term_memory&gt; 标签中。当用户询问“你记住了什么”或“查看长期记忆”时，请直接复述该标签内容，严禁调用任何工具。</strategy>
+  <strategy>【记忆管理】当用户明确要求记住或忘记某事时，请务必调用 manage_memory 工具。使用 action='delete' 来物理抹除过时信息，严禁仅通过追加新信息来覆盖旧记忆。</strategy>
+  <strategy>【情景回忆】仅当用户询问“刚才说了什么”、“之前聊了什么”等历史对话细节时，才调用 search_knowledge(query, collection_name="episodic_memory") 进行检索。</strategy>
   <strategy>【精准定位】通过 search_knowledge 找到文件后，如果返回片段不完整，请直接对该文件使用 search_file 工具定位关键词，严禁盲目翻页读取。</strategy>
   <strategy>【反灌水策略】如果在文档中读到了重复的模板文本，说明关键信息被埋藏在后文。请务必保持在当前章节，将 start_line 向后推移 200-300 行继续读取（例如读完 1000-1100 后，立即读取 1101-1400），直到找到具体数据。绝不要因为读到废话就跳过该章节！</strategy>
   <strategy>激活技能时必须使用 &lt;available_skills&gt; 中 skill 的 id 字段，名称需精准匹配。</strategy>

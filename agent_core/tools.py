@@ -194,20 +194,45 @@ def replace_in_file(file_path: str, old_string: str, new_string: str):
     except Exception as e: return f"替换出错: {e}"
 
 @tool
-def remember(fact: str):
+def manage_memory(content: str, action: str = "add"):
     """
-    将关键事实或用户偏好写入长期记忆。
-    例如：'remember("用户偏好使用 Python")' 或 'remember("项目代号是 Project X")'。
-    这些信息会被持久化保存，并在未来的对话中被自动回忆起来。
+    管理长期记忆 (MEMORY.md)。支持增加事实(add)或物理删除事实(delete)。
+    - add: 记录新事实。会自动检查相似度，防止重复。
+    - delete: 抹除记忆。通过关键词匹配并物理删除相关记录。
     """
     try:
         ensure_memory_exists()
         import datetime
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-        entry = f"\n- [{timestamp}] {fact}"
-        with open(MEMORY_FILE, "a", encoding="utf-8") as f: f.write(entry)
-        return f"已记住: {fact}"
-    except Exception as e: return f"记忆写入失败: {e}"
+        import difflib
+        
+        with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            
+        if action == "add":
+            # 智能去重检查
+            for line in lines:
+                content_part = line[20:].strip() if len(line) > 20 else line.strip()
+                if difflib.SequenceMatcher(None, content_part, content.strip()).ratio() > 0.85:
+                    return f"记忆已存在 (相似度高)，跳过写入: {content}"
+            
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            entry = f"\n- [{timestamp}] {content}"
+            with open(MEMORY_FILE, "a", encoding="utf-8") as f:
+                f.write(entry)
+            return f"成功增加记忆: {content}"
+            
+        elif action == "delete":
+            new_lines = [l for l in lines if content not in l or l.startswith('#') or l.startswith('##')]
+            deleted_count = len(lines) - len(new_lines)
+            if deleted_count == 0:
+                return f"未找到包含 '{content}' 的相关记忆。"
+            with open(MEMORY_FILE, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
+            return f"成功抹除 {deleted_count} 条相关记忆。"
+            
+        else:
+            return f"错误: 不支持的操作类型 '{action}'."
+    except Exception as e: return f"记忆管理失败: {e}"
 
 @tool
 def search_file(file_path: str, pattern: str, case_sensitive: bool = False):
@@ -319,4 +344,4 @@ def describe_image(image_path: str, prompt: str = "请详细描述这张图片�
     except Exception as e:
         return f"图像处理出错: {e}"
 
-available_tools = [run_shell, activate_skill, read_file, write_file, replace_in_file, search_file, remember, search_knowledge, describe_image]
+available_tools = [run_shell, activate_skill, read_file, write_file, replace_in_file, search_file, manage_memory, search_knowledge, describe_image]
