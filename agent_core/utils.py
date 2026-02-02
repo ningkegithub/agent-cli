@@ -35,14 +35,9 @@ def ensure_memory_exists():
         os.makedirs(USER_MEMORY_DIR, exist_ok=True)
         
     if not os.path.exists(MEMORY_FILE):
-        default_content = """# User Profile & Long-term Memory
-- 这里存放用户的核心偏好、关键事实和长期指令。
-- Agent 在每次对话前都会读取此文件。
-- 请使用 'remember' 工具追加新的记忆。
-
-## User Preferences
-- Language: 中文优先
-- Role: 金蝶售前顾问助手
+        default_content = """# 长期记忆 (Long-term Memory)
+## 用户偏好 (User Preferences)
+- 语言: 中文
 """
         with open(MEMORY_FILE, "w", encoding="utf-8") as f:
             f.write(default_content)

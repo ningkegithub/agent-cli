@@ -169,5 +169,13 @@ python3 -m unittest discover tests -p "test_*.py"
 python3 tests/test_e2e_v3_full.py
 ```
 
+## 🙏 致谢与参考 (Acknowledgements)
+
+本项目深受开源社区的启发，特别致谢以下优秀项目：
+
+- **[OpenClaw](https://github.com/cpacker/MemGPT)** (openclaw_repo): 优秀的 Agent 架构设计与开源实践，为本项目提供了宝贵的参考。
+- **LangGraph**: 提供了强大的状态机编排能力。
+- **Rich**: 赋予了 CLI 极致的交互体验。
+
 ## 📄 开源协议
 MIT License

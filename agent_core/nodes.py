@@ -96,7 +96,7 @@ def call_model(state: AgentState):
 <core_strategies>
   <strategy>遇到复杂任务，请优先检查并激活相关技能。</strategy>
   <strategy>在执行任何操作或回答前，请先简要说明你的分析思路。</strategy>
-  <strategy>【长期记忆】你的用户偏好和核心事实已加载在 &lt;long_term_memory&gt; 标签中。当用户询问“你记住了什么”或“查看长期记忆”时，请直接复述该标签内容，严禁调用任何工具。</strategy>
+  <strategy>【自我认知】当用户询问“你了解我吗”、“你知道我是谁吗”、“查看长期记忆”等涉及用户画像的问题时，请直接复述 &lt;long_term_memory&gt; 标签中的内容。严禁调用 search_knowledge 去翻阅历史对话，除非用户明确要求回忆具体的往事。</strategy>
   <strategy>【记忆管理】当用户明确要求记住或忘记某事时，请务必调用 manage_memory 工具。使用 action='delete' 来物理抹除过时信息，严禁仅通过追加新信息来覆盖旧记忆。</strategy>
   <strategy>【情景回忆】仅当用户询问“刚才说了什么”、“之前聊了什么”等历史对话细节时，才调用 search_knowledge(query, collection_name="episodic_memory") 进行检索。</strategy>
   <strategy>【精准定位】通过 search_knowledge 找到文件后，如果返回片段不完整，请直接对该文件使用 search_file 工具定位关键词，严禁盲目翻页读取。</strategy>
