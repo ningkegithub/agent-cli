@@ -5,6 +5,29 @@
 
 ---
 
+## 📅 2026-02-02
+
+### 👨‍💻 交班人: Codex
+
+#### ✅ 已完成工作 (Done)
+1. **会话归档稳定性增强**：
+   - 增加 `atexit` + `SIGTERM/SIGHUP` 退出钩子，覆盖非优雅退出的归档场景。
+   - `ingest` 失败时输出一行摘要（含 return code 与首行错误），便于排查。
+2. **E2E 输出规范收敛**：
+   - `tests/test_e2e_v3_full.py` 输入/输出统一迁移到 `output/e2e_v3`。
+   - Prompt 明确“路径已在 output/ 下”，避免“未遵循 output/ 规范”噪音提示。
+3. **测试补充**：
+   - 新增 `test_archive_session_once_guard`，保证退出归档只执行一次。
+
+#### 🧪 已运行测试 (Tests)
+- `./venv/bin/python3 tests/test_memory_archiving.py` (Pass)
+- `./venv/bin/python3 tests/test_e2e_v3_full.py`（因网络不可达跳过在线测试）
+
+#### ⚠️ 注意事项 (Notes)
+- `tests/test_e2e_v3_full.py` 需要可出网环境才会执行在线回归流程。
+
+---
+
 ## 📅 2026-01-30
 
 ### 👨‍💻 交班人: Codex
@@ -106,7 +129,7 @@
 - 手动验证：多行输入模式 (`\` 续行) 及 PPT 图片生成。
 
 #### ⚠️ 注意事项 (Notes)
-- **E2E 警告**：目前的 E2E 测试仍会提示“未遵循 output/ 规范”，这是因为测试脚本中的 Prompt 引导力度不足，实际工具（如 `excel_ops.py`）已在底层做好了强制路径纠偏。
+- **E2E 提示**：`tests/test_e2e_v3_full.py` 已将输入/输出全部迁移到 `output/e2e_v3` 并在 Prompt 中明确路径，避免“output/ 规范”相关提示噪音。
 - **图片路径**：在 PPT 中插入图片时，建议使用相对路径或确保 Agent 能访问到的绝对路径。
 - **视觉模型配置 (New)**：
     - `describe_image` 工具已解耦，不再依赖主模型的 `LLM_` 配置。
@@ -159,6 +182,6 @@
     - 情景日志: `~/.agent-cli/memory/logs/YYYY-MM-DD/`
     - 向量数据: `~/.agent-cli/memory/lancedb_store`
 - **首次运行**：第一次调用 `knowledge_base` 时会自动下载 BGE 模型 (~300MB)，需确保网络通畅。
-- **未来规划**：目前的 Collection 默认为 `documents`。下一步可扩展 `episodic_memory` 集合，实现对话历史的自动沉淀（参考 OpenClaw 机制）。
+- **情景记忆**：已实现会话自动归档并入库到 `episodic_memory`（退出时由 `_archive_session` 调用 `skills/knowledge_base/scripts/ingest.py`）。
 
 ---

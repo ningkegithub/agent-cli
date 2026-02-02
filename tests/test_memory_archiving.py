@@ -5,7 +5,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 # 确保能导入 main.py
 sys.path.append(os.getcwd())
-from main import _archive_session
+import main
 from agent_core.utils import USER_MEMORY_DIR
 
 class TestMemoryArchiving(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestMemoryArchiving(unittest.TestCase):
         # 2. 调用归档函数
         # 注意：这里会真实调用 subprocess，为了防止模型下载耗时，我们假设 ingest.py 已存在
         try:
-            _archive_session(history)
+            main._archive_session(history)
             
             # 3. 检查文件是否生成
             import datetime
@@ -47,6 +47,23 @@ class TestMemoryArchiving(unittest.TestCase):
             
         except Exception as e:
             self.fail(f"Archiving failed with error: {e}")
+
+    def test_archive_session_once_guard(self):
+        """验证退出归档只执行一次，避免重复写入。"""
+        calls = []
+        original_archive = main._archive_session
+        try:
+            main._ARCHIVE_ON_EXIT_DONE = False
+            main._archive_session = lambda history: calls.append(history)
+
+            main._archive_session_once(["a"])
+            main._archive_session_once(["b"])
+
+            self.assertEqual(len(calls), 1, "archive should only run once")
+            self.assertEqual(calls[0], ["a"], "first call should be kept")
+        finally:
+            main._archive_session = original_archive
+            main._ARCHIVE_ON_EXIT_DONE = False
 
 if __name__ == '__main__':
     unittest.main()

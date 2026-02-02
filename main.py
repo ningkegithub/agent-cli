@@ -12,6 +12,7 @@ import threading
 import queue
 import signal
 import subprocess
+import atexit
 
 # Rich & PromptToolkit
 from rich.live import Live
@@ -30,6 +31,11 @@ from agent_core.nodes import shutdown_llm_clients
 from cli.config import console, check_api_key, get_random_phrase
 from cli.async_worker import run_worker
 import cli.ui as ui
+
+_LAST_CHAT_HISTORY = None
+_LAST_STOP_EVENT = None
+_LAST_WORKER_THREAD = None
+_ARCHIVE_ON_EXIT_DONE = False
 
 def _msg_key(msg):
     """生成消息去重键：优先使用消息 id，缺失时回退到对象地址。"""
@@ -126,20 +132,29 @@ def _archive_session(chat_history):
             if proc.returncode == 0:
                 console.print(f"[dim]🧠 记忆已同步至 episodic_memory[/dim]")
             else:
-                # 仅在 debug 模式或 verbose 模式下显示错误，避免吓到用户
-                # console.print(f"[dim]⚠️ 记忆同步跳过: {proc.stderr.strip()}[/dim]")
-                pass
+                err_text = (proc.stderr or proc.stdout or "").strip()
+                err_line = err_text.splitlines()[0] if err_text else ""
+                suffix = f" {err_line[:200]}" if err_line else ""
+                console.print(f"[dim]⚠️ 记忆同步失败 (code {proc.returncode}){suffix}[/dim]")
         else:
             console.print(f"[dim]⚠️ 未找到 ingest 脚本，跳过记忆同步[/dim]")
             
     except Exception as e:
         console.print(f"[red]归档失败: {e}[/red]")
 
+def _archive_session_once(chat_history):
+    """退出路径只归档一次，避免重复写入。"""
+    global _ARCHIVE_ON_EXIT_DONE
+    if _ARCHIVE_ON_EXIT_DONE:
+        return
+    _ARCHIVE_ON_EXIT_DONE = True
+    _archive_session(chat_history)
+
 def _graceful_exit(stop_event, worker_thread, history=None):
     """退出前尽量停止后台线程，并归档会话。"""
     try:
         if history:
-            _archive_session(history)
+            _archive_session_once(history)
             
         if stop_event and worker_thread and worker_thread.is_alive():
             stop_event.set()
@@ -151,8 +166,32 @@ def _graceful_exit(stop_event, worker_thread, history=None):
         except Exception:
             pass
 
+def _set_runtime_context(history, stop_event, worker_thread):
+    """更新退出时可用的上下文。"""
+    global _LAST_CHAT_HISTORY, _LAST_STOP_EVENT, _LAST_WORKER_THREAD
+    _LAST_CHAT_HISTORY = history
+    _LAST_STOP_EVENT = stop_event
+    _LAST_WORKER_THREAD = worker_thread
+
+def _handle_termination(signum, frame):
+    """处理 SIGTERM/SIGHUP，尽量归档并退出。"""
+    try:
+        console.print(f"[dim]⚠️ 收到终止信号 {signum}，正在归档会话并退出...[/dim]")
+        _graceful_exit(_LAST_STOP_EVENT, _LAST_WORKER_THREAD, _LAST_CHAT_HISTORY)
+    finally:
+        raise SystemExit(0)
+
+def _install_exit_handlers():
+    """安装退出钩子，覆盖非优雅退出场景。"""
+    atexit.register(lambda: _archive_session_once(_LAST_CHAT_HISTORY))
+    for sig in ("SIGTERM", "SIGHUP"):
+        sig_value = getattr(signal, sig, None)
+        if sig_value is not None:
+            signal.signal(sig_value, _handle_termination)
+
 def main():
     ui.render_header()
+    _install_exit_handlers()
     
     if not check_api_key():
         return
@@ -205,6 +244,7 @@ def main():
                 daemon=True
             )
             worker_thread.start()
+            _set_runtime_context(chat_history, stop_event, worker_thread)
             
             # UI 状态
             start_time = time.time()
@@ -306,6 +346,7 @@ def main():
                         continue
 
             chat_history = current_messages
+            _set_runtime_context(chat_history, stop_event, worker_thread)
 
         except KeyboardInterrupt:
             now = time.monotonic()
