@@ -5,6 +5,22 @@
 
 ---
 
+## 📅 2026-02-03 15:40
+
+### 👨‍💻 交班人: Gemini (Senior Architect)
+
+#### ✅ 已完成工作 (Done)
+1.  **沙箱隔离与角色对齐 (Sandboxing)**：
+    -   **准则确立**：在 `GEMINI.md` 中新增“角色边界”章节，明确区分开发者权限与应用权限。
+    -   **物理隔离**：重构 `agent_core/tools.py` 中的 `write_file`。所有业务数据强制存入 `output/`，所有临时脚本强制存入 `tmp/`。ZX CLI 现已失去对项目根目录的直接修改能力。
+2.  **Excel 技能进阶 (Excel Master v2)**：
+    -   **自动汇总**：增强了 `excel_ops.py` 脚本。当指定 `--calculate total` 时，脚本会自动识别数值列，在 Excel 底部生成“总计”行，并应用加粗样式。
+3.  **测试加固**：
+    -   新增 `tests/test_v2_upgrades.py`，同步验证了路径隔离逻辑与 Excel 汇总功能的正确性。
+
+#### 🧪 已运行测试 (Tests)
+- `PYTHONPATH=. ./venv/bin/python3 tests/test_v2_upgrades.py` (Pass)
+
 ## 📅 2026-02-03 15:10
 
 ### 👨‍💻 交班人: Gemini (Ethics Officer)

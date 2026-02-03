@@ -25,21 +25,36 @@ def process_excel(input_path, output_path, title=None, calculate=None):
         print(f"❌ 数据加载失败: {e}")
         sys.exit(1)
 
-    # 2. 基础计算 (可选)
-    if calculate:
-        calc_types = [c.strip().lower() for c in calculate.split(',')]
-        # 这里可以根据需求增加更复杂的逻辑，目前仅作为示例输出信息
-        print(f"ℹ️ 正在执行计算: {', '.join(calc_types)}")
+    # 2. 基础计算与汇总行 (New!)
+    has_total = False
+    if calculate and 'total' in calculate.lower():
+        # 识别数值列进行求和
+        numeric_cols = df.select_dtypes(include=['number']).columns
+        if not numeric_cols.empty:
+            print(f"ℹ️ 正在为以下列生成总计: {', '.join(numeric_cols)}")
+            total_row = {col: df[col].sum() for col in numeric_cols}
+            
+            # 创建汇总行，第一列通常设为“总计”
+            summary_row = pd.Series(name='Total')
+            summary_row[df.columns[0]] = "总计"
+            for col, val in total_row.items():
+                summary_row[col] = val
+            
+            # 将汇总行追加到 DataFrame 底部 (仅用于展示，实际写入 Excel 时可选择不同方式)
+            df = pd.concat([df, pd.DataFrame([summary_row])], ignore_index=True)
+            has_total = True
 
     # 3. 写入 Excel 并应用样式
     try:
-        # 确保输出目录规范 (强制使用 output/ 目录，除非已包含)
+        # 确保输出目录规范
         if not output_path.startswith('output/') and not os.path.isabs(output_path):
             output_path = os.path.join('output', output_path)
-            os.makedirs('output', exist_ok=True)
+        
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
         writer = pd.ExcelWriter(output_path, engine='xlsxwriter')
-        df.to_excel(writer, sheet_name='Sheet1', index=False, startrow=1 if title else 0)
+        start_row = 1 if title else 0
+        df.to_excel(writer, sheet_name='Sheet1', index=False, startrow=start_row)
         
         workbook  = writer.book
         worksheet = writer.sheets['Sheet1']
@@ -53,6 +68,13 @@ def process_excel(input_path, output_path, title=None, calculate=None):
             'border': 1
         })
 
+        total_format = workbook.add_format({
+            'bold': True,
+            'fg_color': '#F2F2F2',
+            'border': 1,
+            'num_format': '#,##0.00'
+        })
+
         title_format = workbook.add_format({
             'bold': True,
             'font_size': 14,
@@ -64,12 +86,19 @@ def process_excel(input_path, output_path, title=None, calculate=None):
         if title:
             worksheet.merge_range(0, 0, 0, len(df.columns) - 1, title, title_format)
 
-        # 应用表头样式
+        # 应用表头样式与列宽调整
         for col_num, value in enumerate(df.columns.values):
-            worksheet.write(1 if title else 0, col_num, value, header_format)
+            worksheet.write(start_row, col_num, value, header_format)
             # 自动调整列宽
-            column_len = max(df[value].astype(str).map(len).max(), len(value)) + 2
+            max_val_len = df[value].astype(str).map(len).max()
+            column_len = max(max_val_len, len(value)) + 2
             worksheet.set_column(col_num, col_num, column_len)
+
+        # 如果有汇总行，应用特殊样式
+        if has_total:
+            total_row_idx = len(df) + start_row - 1
+            for col_num, value in enumerate(df.iloc[-1]):
+                worksheet.write(total_row_idx, col_num, value, total_format)
 
         writer.close()
         print(f"🎉 成功生成报表: {output_path}")

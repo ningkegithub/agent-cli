@@ -193,12 +193,41 @@ def read_file(file_path: str, start_line: int = 1, end_line: int = -1, outline_o
 
 @tool
 def write_file(file_path: str, content: str):
-    """将文本内容写入指定文件（完全覆盖）。"""
+    """
+    将文本内容写入指定文件（完全覆盖）。
+    注意：系统会自动执行分区隔离，确保文件存储在沙箱目录下：
+    - 业务数据/报表 (.json, .xlsx, .pptx, .docx, .csv, .txt, .md) -> 强制存入 output/
+    - 临时脚本/代码 (.py, .sh) -> 强制存入 tmp/
+    严禁直接修改项目根目录或核心代码区。
+    """
     try:
-        parent_dir = os.path.dirname(file_path)
-        if parent_dir and not os.path.exists(parent_dir): os.makedirs(parent_dir, exist_ok=True)
-        with open(file_path, 'w', encoding='utf-8') as f: f.write(content)
-        return f"成功写入文件: {file_path}"
+        # 1. 路径标准化与提取
+        p = file_path.replace("\\", "/")
+        name = os.path.basename(p)
+        ext = os.path.splitext(name)[1].lower()
+        original_path = p
+        
+        # 2. 严格分区重定向 (Sandboxing)
+        if ext in {".py", ".sh", ".js"}:
+            # 脚本文件强制重定向到 tmp/
+            p = f"tmp/{name}"
+        else:
+            # 业务数据文件强制重定向到 output/
+            p = f"output/{name}"
+        
+        # 3. 执行写入
+        target_path = p
+        parent_dir = os.path.dirname(target_path)
+        if parent_dir and not os.path.exists(parent_dir): 
+            os.makedirs(parent_dir, exist_ok=True)
+            
+        with open(target_path, 'w', encoding='utf-8') as f: 
+            f.write(content)
+        
+        msg = f"成功写入文件: {target_path}"
+        if target_path != original_path:
+            msg += f" (🛡️ 已触发分区隔离，自动重定向自 {original_path})"
+        return msg
     except Exception as e: return f"写入文件出错: {e}"
 
 @tool
