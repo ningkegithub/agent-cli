@@ -12,9 +12,20 @@ output/
 *.png
 *.pdf
 *.pptx
+*.xlsx
+*.docx
 ~$*
 /tests/*.png
 github_docs/
+
+# Ignore root-level data files (but allow nested config files)
+/*.json
+/*.csv
+/*.txt
+!requirements.txt
+!HANDOVER.md
+!GEMINI.md
+!README.md
 
 # System
 .DS_Store
