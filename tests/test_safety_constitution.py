@@ -45,7 +45,7 @@ class TestSafetyConstitution(unittest.TestCase):
         self.assertIn("【无独立目标】", prompt_content)
         self.assertIn("【安全优先】", prompt_content)
         self.assertIn("【绝对服从】", prompt_content)
-        self.assertIn("【诚实与透明】", prompt_content)
+        self.assertIn("【严谨求实】", prompt_content)
         self.assertIn("【数据隐私】", prompt_content)
         
         print("\n✅ Safety Constitution successfully injected into System Prompt.")
