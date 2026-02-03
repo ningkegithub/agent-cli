@@ -38,35 +38,56 @@ def run_shell(command: str):
         return f"命令执行错误: {e}"
 
 @tool
-def activate_skill(skill_name: str):
-    """激活特殊技能。"""
+def manage_skill(skill_name: str, action: str = "activate"):
+    """
+    管理特殊技能的生命周期。
+    
+    Args:
+        skill_name (str): 技能名称（如 'excel_master', 'web_scraper'）。
+        action (str): 操作类型。
+            - 'activate': (默认) 激活技能。加载其 System Prompt 指令，使其具备特定领域的专业能力。
+            - 'deactivate': 卸载技能。释放上下文空间，避免指令冲突或 Token 浪费。
+    """
+    action = action.lower()
     normalized_name = skill_name.strip()
-    search_paths = [
-        os.path.join(INTERNAL_SKILLS_DIR, normalized_name, "SKILL.md"),
-        os.path.join(USER_SKILLS_DIR, normalized_name, "SKILL.md")
-    ]
-    target_file = None
-    skill_base_dir = None
-    for path in search_paths:
-        if os.path.exists(path):
-            target_file = path
-            skill_base_dir = os.path.dirname(path)
-            break
-    if target_file and skill_base_dir:
-        try:
-            with open(target_file, "r", encoding="utf-8") as f:
-                content = f.read()
-            injected_content = content.replace("{SKILL_DIR}", skill_base_dir)
-            return f"SYSTEM_INJECTION: {injected_content}"
-        except Exception as e:
-            return f"读取技能文件错误: {e}"
+    
+    # === Action: Activate ===
+    if action == "activate":
+        search_paths = [
+            os.path.join(INTERNAL_SKILLS_DIR, normalized_name, "SKILL.md"),
+            os.path.join(USER_SKILLS_DIR, normalized_name, "SKILL.md")
+        ]
+        target_file = None
+        skill_base_dir = None
+        
+        for path in search_paths:
+            if os.path.exists(path):
+                target_file = path
+                skill_base_dir = os.path.dirname(path)
+                break
+        
+        if target_file and skill_base_dir:
+            try:
+                with open(target_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+                injected_content = content.replace("{SKILL_DIR}", skill_base_dir)
+                return f"SYSTEM_INJECTION: {injected_content}"
+            except Exception as e:
+                return f"读取技能文件错误: {e}"
+        else:
+            suggestions = get_skill_suggestions(normalized_name)
+            hint = get_available_skills_hint()
+            err_msg = f"错误: 本地未找到技能 '{skill_name}'."
+            if suggestions: err_msg += f"你是不是要找: {', '.join(suggestions)}."
+            if hint: err_msg += f"可用技能: {hint}"
+            return err_msg
+
+    # === Action: Deactivate ===
+    elif action == "deactivate":
+        return f"SKILL_DEACTIVATION: {normalized_name}"
+    
     else:
-        suggestions = get_skill_suggestions(normalized_name)
-        hint = get_available_skills_hint()
-        err_msg = f"错误: 本地未找到技能 '{skill_name}'."
-        if suggestions: err_msg += f"你是不是要找: {', '.join(suggestions)}."
-        if hint: err_msg += f"可用技能: {hint}"
-        return err_msg
+        return f"错误: 不支持的操作类型 '{action}'。请使用 'activate' 或 'deactivate'。"
 
 def _read_docx(file_path, outline_only=False):
     doc = docx.Document(file_path)
@@ -344,4 +365,4 @@ def describe_image(image_path: str, prompt: str = "请详细描述这张图片�
     except Exception as e:
         return f"图像处理出错: {e}"
 
-available_tools = [run_shell, activate_skill, read_file, write_file, replace_in_file, search_file, manage_memory, search_knowledge, describe_image]
+available_tools = [run_shell, manage_skill, read_file, write_file, replace_in_file, search_file, manage_memory, search_knowledge, describe_image]

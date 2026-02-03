@@ -5,6 +5,23 @@
 
 ---
 
+## 📅 2026-02-03 14:10
+
+### 👨‍💻 交班人: Gemini (Skill Lifecycle Specialist)
+
+#### ✅ 已完成工作 (Done)
+1.  **技能管理重构 (manage_skill)**：
+    -   **工具合并**：废弃 `activate_skill`，升级为 `manage_skill(skill_name, action='activate'|'deactivate')`。
+    -   **逻辑闭环**：实现了技能的完整生命周期管理。Agent 现在可以在任务结束后主动卸载技能，释放 System Prompt 上下文，避免指令干扰。
+    -   **节点适配**：同步更新了 `agent_core/nodes.py`，支持拦截 `SKILL_DEACTIVATION` 信号并更新全局状态。
+2.  **测试覆盖**：
+    -   **重写测试**：将 `tests/test_activate_skill_encoding.py` 更新为全链路测试，覆盖了“激活注入”与“卸载清理”两个关键路径。
+3.  **协作准则强化**：
+    -   **刚性提交规范**：在 `GEMINI.md` 中新增第 7 条刚性原则，强制要求 Git 提交前执行“三部曲”：1. 测试通过；2. 更新 README；3. 更新 HANDOVER。
+
+#### 🧪 已运行测试 (Tests)
+- `./venv/bin/python tests/test_activate_skill_encoding.py` (Pass) - 验证了 manage_skill 的激活与卸载功能。
+
 ## 📅 2026-02-02 16:45
 
 ### 👨‍💻 交班人: Gemini (Security Specialist)

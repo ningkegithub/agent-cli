@@ -32,8 +32,11 @@
 
 ### 🧠 记忆与知识中枢 (Memory & Knowledge)
 *   **智能记忆 (`manage_memory`)**：
-    *   支持**增量记忆**：自动去重，避免信息冗余。
-    *   支持**物理遗忘**：可精确删除过时的偏好或事实，解决传统 Agent "只能追加、无法抹除" 的痛点。
+    *   **增量记忆 (Add)**：自动去重，避免信息冗余。
+    *   **物理遗忘 (Delete)**：支持精确删除过时的偏好或事实，解决传统 Agent "只能追加、无法抹除" 的痛点。
+*   **技能生命周期 (`manage_skill`)**：
+    *   **动态激活 (Activate)**：按需加载专业领域的 System Prompt，让 Agent 变身领域专家。
+    *   **上下文卸载 (Deactivate)**：任务完成后自动卸载技能，释放上下文空间，保持轻量高效。
 *   **私有 RAG (`knowledge_base`)**：基于 **LanceDB** + **BGE-M3** 构建的本地向量引擎。
 *   **全生命周期管理**：支持文档入库、自动归档、版本溯源。
 *   **情景记忆**：对话历史自动存入向量库，Agent 拥有“超长短期记忆”。
@@ -142,7 +145,8 @@ VISION_LLM_API_KEY=your-openai-key
 1.  **数据处理**：激活 `excel_master`，清洗 JSON 数据，生成带样式的 `report.xlsx`。
 2.  **视觉分析**：调用 `describe_image` 查看 `chart.png`，理解图表含义。
 3.  **PPT 制作**：激活 `ppt_master`，撰写包含图表分析的 Markdown 剧本，并引用 `chart.png`。
-4.  **最终产出**：生成图文并茂的 `presentation.pptx`。
+4.  **资源清理**：任务完成后，调用 `manage_skill(..., action='deactivate')` 卸载所有技能，释放上下文。
+5.  **最终产出**：生成图文并茂的 `presentation.pptx`。
 
 ### 场景二：智能记忆与遗忘
 > **用户**: "我不喝咖啡了，以后给我推荐茶。顺便把之前关于咖啡的记忆忘掉。"

@@ -5,7 +5,7 @@ import re
 from langchain_core.messages import SystemMessage, ToolMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from .state import AgentState
-from .tools import available_tools, activate_skill
+from .tools import available_tools, manage_skill
 from .utils import get_available_skills_list, ensure_memory_exists, MEMORY_FILE
 
 # 初始化 LLM (支持通过环境变量切换模型提供商，如 DeepSeek/火山引擎)
@@ -106,13 +106,14 @@ def call_model(state: AgentState):
   <strategy>在执行任何操作或回答前，请先简要说明你的分析思路。</strategy>
   <strategy>【自我认知】当用户询问“你了解我吗”、“你知道我是谁吗”、“查看长期记忆”等涉及用户画像的问题时，请直接复述 &lt;long_term_memory&gt; 标签中的内容。严禁调用 search_knowledge 去翻阅历史对话，除非用户明确要求回忆具体的往事。</strategy>
   <strategy>【记忆管理】当用户明确要求记住或忘记某事时，请务必调用 manage_memory 工具。使用 action='delete' 来物理抹除过时信息，严禁仅通过追加新信息来覆盖旧记忆。</strategy>
+  <strategy>【技能管理】激活技能使用 manage_skill(name, action='activate')。当特定领域的任务完成后，必须主动调用 manage_skill(name, action='deactivate') 卸载技能，以释放上下文。</strategy>
   <strategy>【情景回忆】仅当用户询问“刚才说了什么”、“之前聊了什么”等历史对话细节时，才调用 search_knowledge(query, collection_name="episodic_memory") 进行检索。</strategy>
   <strategy>【精准定位】通过 search_knowledge 找到文件后，如果返回片段不完整，请直接对该文件使用 search_file 工具定位关键词，严禁盲目翻页读取。</strategy>
   <strategy>【反灌水策略】如果在文档中读到了重复的模板文本，说明关键信息被埋藏在后文。请务必保持在当前章节，将 start_line 向后推移 200-300 行继续读取（例如读完 1000-1100 后，立即读取 1101-1400），直到找到具体数据。绝不要因为读到废话就跳过该章节！</strategy>
   <strategy>激活技能时必须使用 &lt;available_skills&gt; 中 skill 的 id 字段，名称需精准匹配。</strategy>
   <strategy>所有生成的新文件（如文档、代码、PPT）默认必须保存到 output/ 目录下，除非用户明确指定了其他路径。</strategy>
   <strategy>修改文件前必须先使用 read_file。严禁在正文中虚构文件内容或执行结果。</strategy>
-  <strategy>激活技能 (activate_skill) 后，必须等待下一轮对话确认协议加载，严禁在同一轮次中调用该技能下的脚本或工具。</strategy>
+  <strategy>激活技能 (manage_skill) 后，必须等待下一轮对话确认协议加载，严禁在同一轮次中调用该技能下的脚本或工具。</strategy>
   <strategy>读取文件 (read_file) 后，必须等待内容返回，严禁在同一轮次中执行 write_file。</strategy>
 </core_strategies>
 
@@ -144,10 +145,10 @@ def call_model(state: AgentState):
         tool_names = [tc["name"] for tc in response.tool_calls]
         
         # 拦截 1: 激活与执行并行
-        if "activate_skill" in tool_names and len(tool_names) > 1:
-            print("\n🛡️ [安全守卫] 检测到激活技能与其他动作并行，强制拦截后续动作。")
-            response.tool_calls = [tc for tc in response.tool_calls if tc["name"] == "activate_skill"]
-            response.content = "我需要先激活技能，待下一轮获知技能协议后再执行具体动作。"
+        if "manage_skill" in tool_names and len(tool_names) > 1:
+            print("\n🛡️ [安全守卫] 检测到技能管理与其他动作并行，强制拦截后续动作。")
+            response.tool_calls = [tc for tc in response.tool_calls if tc["name"] == "manage_skill"]
+            response.content = "我需要先变更技能状态，待下一轮生效后再执行具体动作。"
 
         # 拦截 2: 读写并行
         elif "read_file" in tool_names and "write_file" in tool_names:
@@ -158,7 +159,7 @@ def call_model(state: AgentState):
     return {"messages": [response]}
 
 def process_tool_outputs(state: AgentState):
-    """后处理节点：处理技能激活的状态更新。"""
+    """后处理节点：处理技能激活/卸载的状态更新。"""
     messages = state["messages"]
     current_skills = dict(state.get("active_skills", {}))
     skills_updated = False
@@ -172,7 +173,7 @@ def process_tool_outputs(state: AgentState):
     if not last_ai_msg or not last_ai_msg.tool_calls:
         return {}
 
-    id_to_skill = {tc["id"]: tc["args"]["skill_name"] for tc in last_ai_msg.tool_calls if tc["name"] == "activate_skill"}
+    id_to_skill = {tc["id"]: tc["args"]["skill_name"] for tc in last_ai_msg.tool_calls if tc["name"] == "manage_skill"}
     if not id_to_skill:
         return {}
 
@@ -180,8 +181,16 @@ def process_tool_outputs(state: AgentState):
         if not isinstance(msg, ToolMessage): break
         if msg.tool_call_id in id_to_skill:
             skill_name = id_to_skill[msg.tool_call_id]
+            
+            # Case A: Activation (Injection)
             if "SYSTEM_INJECTION" in msg.content:
                 current_skills[skill_name] = msg.content.replace("SYSTEM_INJECTION: ", "")
                 skills_updated = True
+            
+            # Case B: Deactivation (Removal)
+            elif "SKILL_DEACTIVATION" in msg.content:
+                if skill_name in current_skills:
+                    del current_skills[skill_name]
+                    skills_updated = True
     
     return {"active_skills": current_skills} if skills_updated else {}
